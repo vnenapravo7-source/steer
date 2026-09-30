@@ -481,7 +481,10 @@ static int up_connect(struct vless_conn *c, const struct vless_node *n, int time
     struct reality_state rst;
     unsigned char hello[2048];
     size_t hello_n = 0;
-    int rc = reality_build_hello(&cfg, &rst, hello, sizeof(hello), &hello_n);
+    /* Xray-core 26.9.8+ требует X25519MLKEM768 перед обычным X25519 даже тогда,
+     * когда секрет Reality выводится из следующего X25519. */
+    struct reality_carrier car = { .pq = 1 };
+    int rc = reality_build_hello_carry(&cfg, &rst, &car, hello, sizeof(hello), &hello_n);
     if (rc) { close(fd); u->fd = -1; return rc; }
 
     size_t sent = 0;
@@ -909,7 +912,11 @@ int vless_connect(const struct vless_node *node, struct vless_conn *conn, int ti
     };
     unsigned char hello[2048];
     size_t hello_n = 0;
-    int rc = reality_build_hello(&cfg, &conn->rst, hello, sizeof(hello), &hello_n);
+    /* Xray-core 26.9.8+ отправляет клиента на маскировочный сайт, если современный
+     * гибридный key_share не стоит перед X25519. */
+    struct reality_carrier car = { .pq = 1 };
+    int rc = reality_build_hello_carry(&cfg, &conn->rst, &car,
+                                       hello, sizeof(hello), &hello_n);
     if (rc) { close(fd); conn->fd = -1; return rc; }
 
     size_t sent = 0;
